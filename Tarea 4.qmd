@@ -1,0 +1,186 @@
+---
+title: "Análisis de Series Temporales en Python"
+author: "Dario Guillermo Ortiz Padilla"
+format: html
+editor: visual
+jupyter: python3
+---
+
+**Importamos los packages necesarios**
+```{python}
+#| code-fold: true
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+ 
+
+```
+
+
+
+**Código de verificación de archivos en la carpeta**
+```{python}
+#| code-fold: true
+import os
+
+print("Archivos en la carpeta actual:")
+print(os.listdir())
+```
+
+**¿Que son las series temporales**
+*Una serie temporal es una secuencia de datos recolectados o registrados en intervalos de tiempo sucesivos. Estas series son fundamentales para analizar cómo una variable cambia a lo largo del tiempo. En el ámbito financiero, las series temporales son esenciales para estudiar variables como el tipo de cambio, precios de acciones, tasas de interés, entre otros.*
+
+
+**Aplicaciones de las series temporales**
+
+*Análisis de tendencias: Identificar patrones a largo plazo en los datos.*
+
+*Detección de estacionalidades: Reconocer patrones que se repiten en intervalos regulares, como meses o trimestres.*
+
+*Pronósticos: Predecir valores futuros basados en datos históricos.*
+
+*Detección de anomalías: Identificar valores atípicos o comportamientos inusuales en los datos.*
+
+
+*A continuación, se presenta un análisis del tipo de cambio USD/MXN utilizando datos históricos. Este análisis incluye la carga y limpieza de datos, visualización de tendencias y estacionalidades, y la creación de diversos gráficos para una comprensión profunda de la serie temporal.*
+
+
+**Importamos los datos necesarios para el análisis del tipo de cambio**
+```{python}
+#| code-fold: true
+# Cargar el archivo
+df = pd.read_csv("usd_mxn.csv")
+
+# Revisar columnas (esto es solo para verificar)
+print("Columnas del archivo:", df.columns)
+
+# Convertir columna 'Date' a datetime
+df['Date'] = pd.to_datetime(df['Date'])
+
+# Establecer 'Date' como índice
+df.set_index('Date', inplace=True)
+
+# Asegurarse de que 'Price' sea numérico (quitar comas, etc.)
+df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
+
+# Eliminar filas con datos faltantes
+df.dropna(subset=['Price'], inplace=True)
+```
+
+
+
+
+**Grafica del tipo de cambio**
+```{python}
+#| code-fold: true
+plt.plot(df.index, df['Price'])
+plt.title('Tipo de Cambio USD/MXN')
+plt.xlabel('Fecha')
+plt.ylabel('Precio (USD/MXN)')
+plt.grid(True)
+plt.show()
+
+```
+
+
+
+
+**Promedio Anual del tipo de cambio**
+```{python}
+#| code-fold: true
+df['Año'] = df.index.year
+promedio_anual = df.groupby('Año')['Price'].mean()
+
+promedio_anual.plot(kind='bar', color='skyblue')
+plt.title('Promedio Anual USD/MXN')
+plt.ylabel('Tipo de Cambio')
+plt.xlabel('Año')
+plt.grid(axis='y')
+plt.show()
+```
+
+
+**Promedio Mensual del tipo de cambio**
+```{python}
+#| code-fold: true
+df['Mes'] = df.index.month
+promedio_mensual = df.groupby('Mes')['Price'].mean()
+
+promedio_mensual.plot(kind='line', marker='o', color='green')
+plt.title('Promedio Mensual USD/MXN')
+plt.ylabel('Tipo de Cambio')
+plt.xlabel('Mes')
+plt.grid()
+plt.show()
+```
+
+
+**Boxplot trimestral del tipo de cambio**
+```{python}
+#| code-fold: true
+df['Trimestre'] = df.index.to_period('Q').astype(str)
+
+sns.boxplot(x='Trimestre', y='Price', data=df)
+plt.title('Boxplot Trimestral USD/MXN')
+plt.xticks(rotation=45)
+plt.show()
+```
+
+**Comparación mensual del tipo de cambio**
+```{python}
+#| code-fold: true
+# Filtramos datos desde 2020 hasta 2025
+df_filtered = df[(df.index.year >= 2020) & (df.index.year <= 2025)].copy()
+
+# Creamos columna 'Año' y 'Mes'
+df_filtered['Año'] = df_filtered.index.year
+df_filtered['Mes'] = df_filtered.index.month
+
+# Calculamos promedio mensual por año
+monthly_avg = df_filtered.groupby(['Año', 'Mes'])['Price'].mean().unstack(level=0)
+
+# Graficamos comparación mensual por año
+monthly_avg.plot(figsize=(12,6), marker='o')
+plt.title('Comparación Mensual del Tipo de Cambio USD/MXN (2020-2025)')
+plt.xlabel('Mes')
+plt.ylabel('Promedio Mensual USD/MXN')
+plt.xticks(ticks=range(1,13), labels=[
+    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+])
+plt.legend(title='Año')
+plt.grid(True)
+plt.show()
+```
+**Autocorrelación Muestral del Tipo de Cambio**
+```{python}
+#| code-fold: true
+from pandas.plotting import autocorrelation_plot
+
+# Autocorrelación de la serie 'Price'
+autocorrelation_plot(df['Price'])
+plt.title('Autocorrelación Muestral del Tipo de Cambio USD/MXN')
+plt.show()
+```
+
+
+**Diferenciación del Tipo de Cambio**
+```{python}
+#| code-fold: true
+# Primera diferencia
+df['Price_diff'] = df['Price'].diff()
+
+# Graficar la serie diferenciada
+plt.figure(figsize=(12, 5))
+plt.plot(df.index, df['Price_diff'], color='purple')
+plt.title('Diferenciación del Tipo de Cambio USD/MXN (Primera diferencia)')
+plt.xlabel('Fecha')
+plt.ylabel('Δ Precio')
+plt.grid(True)
+plt.show()
+```
+
+
+
+
