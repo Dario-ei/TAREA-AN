@@ -1,0 +1,195 @@
+---
+title: "Tarea 3. INEGI"
+author: "Dario Ortiz"
+date: "2025-04-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(pracma)
+library(plotly)
+library(MASS)
+#library(ISLR2)
+library(car)
+library(corrplot)
+library(rgl)
+library(scatterPlotMatrix)
+
+
+library(openxlsx)
+library(readxl)
+library(writexl)
+library(quantmod)
+library(xts)
+library(zoo)
+library(dygraphs)
+knitr::knit_hooks$set(webgl = hook_webgl)
+```
+
+
+```{r}
+inegi_data <- read_xlsx("./inegi_subdata.xlsx")
+```
+
+```{r}
+data_numeric <- inegi_data %>%  select_if(is.numeric)
+```
+
+
+```{r}
+corr_matrix <- cor(data_numeric, use = "complete.obs")
+print("Matriz de correlación:")
+print(corr_matrix)
+
+```
+
+
+
+```{r}
+cor.mtest <- function(mat, conf.level = 0.95) {
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat <- matrix(NA, n, n)
+  colnames(p.mat) <- colnames(mat)
+  rownames(p.mat) <- colnames(mat)
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      x <- mat[, i]
+      y <- mat[, j]
+      test <- cor.test(x, y, conf.level = conf.level)
+      p.mat[i, j] <- p.mat[j, i] <- test$p.value
+    }
+  }
+  diag(p.mat) <- 0
+  return(p.mat)
+}
+
+data_numeric <- inegi_data %>% select_if(is.numeric)
+corr_matrix <- cor(data_numeric, use = "complete.obs")
+p_matrix <- cor.mtest(data_numeric)  
+
+stopifnot(identical(dim(corr_matrix), dim(p_matrix)))
+stopifnot(identical(colnames(corr_matrix), colnames(p_matrix)))
+
+corrplot(
+  corr_matrix, 
+  method = "color",        
+  type = "upper",          
+  tl.col = "black",       
+  tl.srt = 45,
+  tl.cex = 0.8,
+  p.mat = p_matrix,        
+  sig.level = 0.05,       
+  insig = "blank",         
+  title = "Matriz de Correlaciones Significativas",
+  mar = c(0, 0, 1, 0),     
+  col = colorRampPalette(c("darkblue", "white", "darkgreen"))(100)  
+)
+```
+
+**Regresiones Lineales**
+```{r}
+names ( inegi_data)
+
+```
+**Ejemplo 1: Actividades Primarias v.s Actividades Terciarias**
+```{r}
+modelo_construccion <- lm(Actividades_Primarias ~ Actividades_Terciarias, data = inegi_data)
+summary(modelo_construccion)
+ggplot(inegi_data, aes(x = Actividades_Terciarias, y = Actividades_Primarias)) +
+  geom_point(color = "darkblue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Actividad_Terciaria vs. Actividad_Primaria",
+       x = "Actividad_Terciaria",
+       y = "Actividad_Primaria") +
+  theme_minimal()
+```
+
+**Analisis de la comparación**
+*Las actividades primarias comprenden principalmente la extracción directa de recursos* *naturales, como la agricultura, ganadería, pesca, minería y silvicultura. En cambio, las* *actividades terciarias se relacionan con la prestación de servicios, como comercio,* *transporte, turismo, educación, salud y servicios financieros.*
+
+*Desde una perspectiva económica, la comparación entre ambos sectores revela diferencias* *fundamentales en cuanto a su nivel de desarrollo, generación de valor agregado, sensibilidad a factores externos y papel dentro de la estructura económica nacional.*
+
+
+**Ejemplo 2: Importaciones_No_Petroleras v.s Exportaciones_Petroleras**
+```{r}
+modelo_expo <- lm(Importaciones_No_Petroleras ~ Exportaciones_Petroleras, data = inegi_data)
+summary(modelo_expo)
+ggplot(inegi_data, aes(x = Importaciones_No_Petroleras, y = Exportaciones_Petroleras)) +
+  geom_point(color = "darkgreen") +
+  geom_smooth(method = "lm", color = "darkblue") +
+  labs(title = "Importaciones No Petroleras vs. Exportaciones_Petroleras",
+       x = "Importaciones No Petroleras",
+       y = "Exportaciones_Petroleras") +
+  theme_minimal()
+```
+**Analisis de la comparación**
+*Comparar las importaciones no petroleras con las exportaciones petroleras revela una* *asimetría estructural en la balanza comercial de muchos países exportadores de crudo como* *México. Mientras que las exportaciones petroleras dependen fuertemente de los precios* *internacionales del petróleo y de la capacidad extractiva nacional, las importaciones no* *petroleras suelen ser más diversificadas y estables, incluyendo bienes de consumo,* *intermedios y de capital. Esta diferencia refleja una economía que, aunque históricamente dependiente del petróleo como fuente de ingresos, también muestra una creciente dependencia* *del exterior para abastecer su demanda interna de productos manufacturados y tecnológicos.* *Esta relación puede generar presiones en la balanza comercial cuando los ingresos por* *petróleo no son suficientes para cubrir el volumen creciente de importaciones no petroleras.*
+
+**Ejemplo 3:Exportaciones Totales v.s Importaciones Totales**
+```{r}
+modelo_expo <- lm(Exportaciones_Totales ~ Importaciones_Totales, data = inegi_data)
+summary(modelo_expo)
+ggplot(inegi_data, aes(x = Exportaciones_Totales, y = Importaciones_Totales)) +
+  geom_point(color = "green") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Exportaciones Totales v.s Importaciones Totales",
+       x = "Exportaciones Totales",
+       y = "Importaciones Totales") +
+  theme_minimal()
+```
+**Analisis de la comparación**
+*Comparar el número de exportaciones totales con las importaciones totales permite evaluar el equilibrio comercial de un país y su grado de apertura económica. Cuando las importaciones superan sistemáticamente a las exportaciones, se configura un déficit comercial que puede reflejar una alta dependencia de bienes del exterior, limitada competitividad exportadora o una economía con fuerte consumo interno. Por el contrario, si las exportaciones son mayores, el país experimenta un superávit comercial, lo que puede indicar una inserción exitosa en los mercados internacionales. Esta relación también está influida por factores como el tipo de cambio, tratados comerciales, costos logísticos y condiciones macroeconómicas globales. En el **caso de México, por ejemplo, las exportaciones manufactureras han impulsado el crecimiento, pero las importaciones también crecen al ritmo de la demanda interna y la integración en cadenas globales de valor.*
+
+**Reegresiones Múltiples**
+*Ejempplo 1: Cetes_28_Dias-Tipo_Cambio_Nominal + IPC_BMV*
+```{r}
+library(plotly)
+
+# Gráfico interactivo 3D con las variables reales
+plot_ly(
+  data = inegi_data,
+  x = ~Tipo_Cambio_Nominal,
+  y = ~IPC_BMV,
+  z = ~Cetes_28_Dias,
+  type = "scatter3d",
+  mode = "markers",
+  marker = list(size = 4, color = ~Cetes_28_Dias, colorscale = "Viridis"),
+  text = ~paste("Cetes:", Cetes_28_Dias,
+                "<br>Tipo de cambio:", Tipo_Cambio_Nominal,
+                "<br>IPC:", IPC_BMV)
+) %>%
+  layout(
+    title = "Dispersión 3D: Cetes vs Tipo de Cambio e IPC_BMV",
+    scene = list(
+      xaxis = list(title = "Tipo de Cambio Nominal"),
+      yaxis = list(title = "IPC BMV"),
+      zaxis = list(title = "Cetes 28 Días")
+    )
+  )
+
+```
+
+**Analisis**
+*El código crea un gráfico interactivo en 3D utilizando plotly para visualizar la relación entre tres variables: Tipo de Cambio Nominal, IPC_BMV, y Cetes a 28 días. Los puntos en el gráfico están coloreados según los valores de Cetes_28_Dias, lo que facilita la observación de la distribución de esta variable. El gráfico permite al usuario interactuar, rotar y hacer zoom, lo que mejora la exploración de los datos. Además, al pasar el mouse sobre los puntos, se muestran detalles adicionales de cada observación. Este tipo de visualización es útil para entender cómo las tres variables se interrelacionan y explorar posibles patrones o tendencias en los datos.*
+
+
+**Ejemplo 2: Importaciones_Totales-Exportaciones_Totales + Importaciones_No_Petroleras**
+```{r}
+modelo_terciarias <- lm(Importaciones_Totales ~ Exportaciones_Totales + Importaciones_No_Petroleras, data = inegi_data)
+summary(modelo_terciarias)
+vif(modelo_terciarias)  
+
+
+
+ggplot(inegi_data, aes(x = Importaciones_Totales, y = Exportaciones_Totales)) +
+  geom_point(color = "darkblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred") +
+  labs(title = "Relación parcial: Importaciones Totales vs Exportaciones Totales")
+```
+
+**Analisis**
+*El análisis de las importaciones totales, las exportaciones totales y las importaciones no petroleras revela una interdependencia crucial en la economía de un país. Las importaciones totales reflejan el volumen total de bienes y servicios adquiridos del extranjero, lo que está influenciado por factores como la demanda interna, la competitividad de los productos nacionales y la política cambiaria. Las exportaciones totales, por su parte, indican la capacidad del país para generar ingresos a partir de la venta de bienes y servicios en mercados internacionales, lo cual es clave para el crecimiento económico y la balanza comercial. Las importaciones no petroleras son un indicador específico de la dependencia de insumos y productos extranjeros que no están relacionados con el sector energético, lo que muestra la diversificación de la economía y el grado de industrialización. En conjunto, estos tres indicadores proporcionan una visión integral del comercio exterior y de la sostenibilidad económica del país, siendo especialmente relevante el balance entre las exportaciones y las importaciones para determinar el déficit o superávit comercial.*
