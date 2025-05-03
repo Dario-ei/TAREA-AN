@@ -1,0 +1,295 @@
+---
+title: "Tarea 3. Valores financieros"
+author: "Dario Ortiz"
+date: "2025-05-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(pracma)
+library(plotly)
+library(MASS)
+#library(ISLR2)
+library(car)
+library(corrplot)
+library(rgl)
+library(scatterPlotMatrix)
+
+
+library(openxlsx)
+library(readxl)
+library(writexl)
+library(quantmod)
+library(xts)
+library(zoo)
+library(dygraphs)
+knitr::knit_hooks$set(webgl = hook_webgl)
+
+```
+
+
+
+
+**Valores financieros**
+*Esta gráfica inicialmente nos permite vizualizar de manera objetiva los valores financieros de la misma, y hacer un análisis*
+```{r}
+begin_date ="2020-01-01"
+end_date = "2025-03-03"
+getSymbols("META", src = "yahoo", from = begin_date, to = end_date, periodicity = "daily")
+
+chartSeries(META)
+```
+
+```{r}
+tickers <- c("AAPL", "AMZN", "META", "GOOG", "NVDA", "NFLX", "AMD", "MSFT", "DIS", "BA")
+getSymbols(tickers, src = "yahoo", from = begin_date, to = end_date, periodicity = "daily")
+class(AAPL)
+
+```
+
+
+*En el siguiente grafico se muestran las comparaciones de "precios cierre" de distintas empresas, estos desde el 2020-2025*
+```{r}
+lista <- lapply(tickers, function(x) Cl(get(x)))
+precio_cierre <- do.call(merge,lista)
+
+dygraph(precio_cierre)
+saveRDS(precio_cierre, "precio_cierre.RDS")
+# La siguiente función se utilizaría para leer el objeto precio_cierre.RDS
+#precio_cierre <- readRDS("precio_cierre.RDS")
+
+```
+
+*El ETF ( Exchange Traided Fund) a analizar sera EWW, pero ¿Que es EWW?*
+*EWW – iShares MSCI Mexico ETF*
+*Rastrea empresas grandes y medianas de México. Muy útil para ver cómo responde el mercado mexicano a eventos globales o nacionales.*
+
+
+
+
+
+
+**ETF EEW**
+```{r}
+# Descargar datos históricos del ETF EWW desde Yahoo Finance
+getSymbols("EWW", src = "yahoo", from = "2015-01-01", auto.assign = TRUE)
+
+# Ver estructura de los datos
+head(EWW)
+```
+
+**Precios de cierre**
+```{r}
+# Extraer solo el precio de cierre ajustado
+eww_adj <- Ad(EWW)
+
+# Visualización interactiva con dygraphs
+dygraph(eww_adj, main = "Precio de Cierre Ajustado - EWW") %>%
+  dyRangeSelector() %>%
+  dyOptions(colors = "darkblue")
+```
+
+
+
+**Rendimientos diarios y acumulados**
+```{r}
+# Rendimiento logarítmico diario
+eww_ret <- dailyReturn(eww_adj, type = "log")
+
+# Rendimiento acumulado
+eww_cum <- cumsum(eww_ret)
+
+# Graficar ambos
+par(mfrow = c(2, 1))
+plot(eww_ret, main = "Rendimiento Logarítmico Diario", col = "blue")
+plot(eww_cum, main = "Rendimiento Logarítmico Acumulado", col = "darkgreen")
+par(mfrow = c(1, 1))
+
+```
+
+**Estadisticas**
+```{r}
+summary(eww_ret)
+sd(eww_ret, na.rm = TRUE)
+skewness <- function(x) mean((x - mean(x))^3) / sd(x)^3
+kurtosis <- function(x) mean((x - mean(x))^4) / sd(x)^4
+
+# Skewness y kurtosis
+skewness(na.omit(eww_ret))
+kurtosis(na.omit(eww_ret))
+```
+**Matriz de correlación**
+*Ahora crearemos una matriz de correlación, la cual nos ayudara a comparar distiuntos valores de varios ETF´s**los seleccionados para comparar con EWW, son "SPY", "EWZ", "ILF"*
+*Daremos una brece explicación de que es cada ETF, *
+*SPY – SPDR S&P 500 ETF Trust*
+*Objetivo: Replica el índice S&P 500, que agrupa a las 500 empresas más grandes y representativas de EE. UU.*
+
+*Importancia: Es uno de los ETFs más grandes y líquidos del mundo. Se usa como referencia del desempeño del mercado estadounidense.*
+
+*Tipo de mercado: Desarrollado, altamente diversificado.*
+
+*EWZ – iShares MSCI Brazil ETF*
+*Objetivo: Rastrea el índice MSCI Brazil, compuesto por grandes y medianas empresas* *brasileñas.*
+
+*Importancia: Es uno de los ETFs más conocidos de mercados emergentes.* *Altamente sensible a commodities y política económica.*
+
+*Tipo de mercado: Emergente, volátil.*
+
+*ILF – iShares Latin America 40 ETF*
+*Objetivo: Replica un índice de 40 grandes empresas* *de América Latina* *(incluye México,* *Brasil, Chile, Colombia y Perú).*
+
+*Importancia: Ofrece exposición regional, combinando varias economías emergentes* *latinoamericanas en un solo instrumento.*
+
+*Tipo de mercado: Emergente, diversificado regionalmente.*
+
+
+
+
+
+```{r}
+# Descargar datos de otros ETFs
+symbols <- c("SPY", "EWZ", "ILF")
+getSymbols(symbols, src = "yahoo", from = "2015-01-01", auto.assign = TRUE)
+```
+
+```{r}
+# Crear una lista con los precios ajustados
+prices <- list(
+  EWW = Ad(EWW),
+  SPY = Ad(SPY),
+  EWZ = Ad(EWZ),
+  ILF = Ad(ILF)
+)
+
+# Convertir a rendimientos logarítmicos diarios
+returns <- map(prices, ~ dailyReturn(.x, type = "log"))
+
+# Unir en un solo objeto xts
+returns_xts <- reduce(returns, merge)
+
+# Renombrar columnas
+colnames(returns_xts) <- names(prices)
+
+# Mostrar una muestra
+head(returns_xts)
+```
+
+```{r}
+# Calcular matriz de correlación
+cor_matrix <- cor(returns_xts, use = "complete.obs")
+
+# Visualizar con corrplot
+corrplot(cor_matrix, method = "color", type = "upper", 
+         addCoef.col = "black", tl.col = "black", 
+         title = "Matriz de Correlación de Rendimientos", mar = c(0,0,1,0))
+```
+
+**Regresiones multiples**
+```{r}
+# Convertir a data.frame y eliminar NA
+returns_df <- na.omit(as.data.frame(returns_xts))
+
+# Vista previa de los datos
+head(returns_df)
+```
+
+```{r}
+# Regresión múltiple: EWW en función de SPY, EWZ, ILF
+modelo <- lm(EWW ~ SPY + EWZ + ILF, data = returns_df)
+
+# Resumen del modelo
+summary(modelo)
+```
+
+```{r}
+# Residuales, normalidad y heterocedasticidad visual
+par(mfrow = c(2, 2))
+plot(modelo)
+par(mfrow = c(1, 1))
+```
+
+**Comparaciones EWW vs SPY**
+```{r}
+# Gráfico de precios ajustados
+plot(merge(Ad(EWW), Ad(SPY)), main = "Precios Ajustados: EWW vs SPY", col = c("blue", "red"))
+
+# Gráfico de rendimientos
+plot(merge(returns_xts$EWW, returns_xts$SPY), main = "Rendimientos: EWW vs SPY", col = c("blue", "red"))
+
+# Regresión
+reg1 <- lm(EWW ~ SPY, data = returns_xts)
+summary(reg1)
+
+# Dispersión + recta de regresión
+plot(returns_xts$SPY, returns_xts$EWW, 
+     main = "EWW vs SPY", xlab = "SPY", ylab = "EWW", col = "darkblue", pch = 16)
+abline(reg1, col = "red", lwd = 2)
+
+```
+
+*El ETF EWW, que representa al mercado accionario mexicano, muestra una correlación moderada con SPY, el ETF que replica el índice S&P 500 de Estados Unidos. Esta relación indica que, aunque los mercados de ambos países están vinculados por relaciones comerciales y financieras, el comportamiento de EWW también está influenciado por factores internos como la política económica local, el tipo de cambio y la percepción de riesgo país. La regresión simple revela una relación positiva y estadísticamente significativa, lo que sugiere que una parte de la variación en EWW puede explicarse por los movimientos del mercado estadounidense, pero no en su totalidad.*
+
+
+
+
+**Comparaciones EWW vs EWZ**
+```{r}
+# Gráfico de precios
+plot(merge(Ad(EWW), Ad(EWZ)), main = "Precios Ajustados: EWW vs EWZ", col = c("blue", "darkgreen"))
+
+# Gráfico de rendimientos
+plot(merge(returns_xts$EWW, returns_xts$EWZ), main = "Rendimientos: EWW vs EWZ", col = c("blue", "darkgreen"))
+
+# Regresión
+reg2 <- lm(EWW ~ EWZ, data = returns_xts)
+summary(reg2)
+
+# Dispersión + recta de regresión
+plot(returns_xts$EWZ, returns_xts$EWW, 
+     main = "EWW vs EWZ", xlab = "EWZ", ylab = "EWW", col = "darkgreen", pch = 16)
+abline(reg2, col = "red", lwd = 2)
+```
+
+*La relación entre EWW y EWZ (ETF que replica al mercado accionario brasileño) es más fuerte que con SPY, lo que puede atribuirse a que ambos países comparten características de mercados emergentes. Ambos reaccionan de manera similar ante movimientos en los precios de commodities, tasas de interés en EE.UU., y flujos de capital globales hacia regiones emergentes. La regresión evidencia una pendiente positiva alta, aunque la dispersión de los puntos sugiere que hay cierta volatilidad idiosincrática entre ambos mercados. Esto implica que, si bien comparten algunas dinámicas, también presentan riesgos y trayectorias propias.*
+
+
+**Comparaciones EWW vs ILF**
+```{r}
+# Gráfico de precios
+plot(merge(Ad(EWW), Ad(ILF)), main = "Precios Ajustados: EWW vs ILF", col = c("blue", "orange"))
+
+# Gráfico de rendimientos
+plot(merge(returns_xts$EWW, returns_xts$ILF), main = "Rendimientos: EWW vs ILF", col = c("blue", "orange"))
+
+# Regresión
+reg3 <- lm(EWW ~ ILF, data = returns_xts)
+summary(reg3)
+
+# Dispersión + recta de regresión
+plot(returns_xts$ILF, returns_xts$EWW, 
+     main = "EWW vs ILF", xlab = "ILF", ylab = "EWW", col = "orange", pch = 16)
+abline(reg3, col = "red", lwd = 2)
+
+```
+
+*ILF, que agrupa acciones de varias economías latinoamericanas, presenta una alta correlación con EWW, lo cual es consistente dado que México representa una porción significativa del fondo. Esta relación hace que la regresión tenga un ajuste considerablemente bueno, con coeficientes estadísticamente significativos. Sin embargo, EWW puede tener un comportamiento relativamente más estable o predecible si se compara con ILF, que también incluye países con mayor volatilidad política o económica, como Argentina o Colombia. Esta comparación refuerza la idea de que EWW puede considerarse un proxy razonable del desempeño regional con menor dispersión.*
+
+
+
+**Comaparaciones Visuales**
+```{r}
+# Unir precios ajustados
+combined_prices <- merge(Ad(EWW), Ad(SPY), Ad(EWZ), Ad(ILF))
+colnames(combined_prices) <- c("EWW", "SPY", "EWZ", "ILF")
+
+# Graficar con dygraphs
+dygraph(combined_prices, main = "Precios Ajustados Comparados") %>%
+  dyRangeSelector() %>%
+  dyOptions(colors = c("blue", "red", "darkgreen", "orange"))
+```
+
+*El gráfico interactivo muestra de forma clara cómo se han comportado los precios ajustados de EWW en comparación con SPY, EWZ e ILF en el tiempo. Se observa que EWW tiende a seguir la misma dirección general que los otros ETFs, aunque con menor magnitud de variación que EWZ (más volátil) y con menos crecimiento sostenido que SPY (más estable y ascendente). ILF presenta una trayectoria intermedia, influenciada por el comportamiento regional. Esta visualización facilita identificar periodos donde los mercados se desacoplan o convergen, por ejemplo, durante crisis financieras o repuntes económicos.*
+
