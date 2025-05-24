@@ -474,7 +474,6 @@ plt.ylabel("Peso promedio muestra 2 (mg)")
 plt.show()
 ```
 
-**Comentarios:** *Se puede observar que las aproximaciones, tanto la de Lagrange como la del Spline cúbico, son las mismas, es decir, quedan superpuestas.* *Ahora bien, hablando sobre lo que se ve en ambas gráficas se observa como a partir del día 10 el peso promedio de las larvas disminuye; sin embargo, es menos drástico para la muestra 1 que la disminución del peso para la muestra 2.* *Aunque es de resaltar que el peso en la muestra 1 siempre es más pronunciado que en peso de las larvas en la muestra 2, debido a si el árbol es jovén o maduro.*
 
 Separados o en la misma gráfica?
 
@@ -562,7 +561,7 @@ print(f"Spline Natural: Densidad ≈ {densidad_spline:.4f}, Derivada ≈ {deriva
 
 ```
 
-**Comentarios:** *Podemos observar que las aproximaciones, tanto la de Lagrange como la del Spline cúbico, son las mismas, es decir, quedan superpuestas.* *Por otro lado, refiriéndonos al análisis de la gráfica, podemos resaltar que a medida que aumenta la temperatura la densidad del agua tiende a disminuir. Esta disminución en más ponunciada dentro de los 60°C y los 65°C. Pero fuera de este intervalo, la densidad del agua disminuye de forma casi igual.*
+
 :::
 
 ::: {#exr-tarea2_6}
